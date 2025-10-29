@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>プロフィール情報の更新</h2>
+    <p>初回ログインありがとうございます。氏名と役職を選択してください。</p>
+
+    <form method="post" class="account-card" style="max-width: 500px;">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">更新して続ける</button>
+    </form>
+{% endblock %}

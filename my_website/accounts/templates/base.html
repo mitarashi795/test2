@@ -6,141 +6,45 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
-/* 基本スタイル */
-    body { font-family: sans-serif; margin: 0; background-color: #f4f7f6; }
-    .content { padding: 2em; }
-
-    /* ヘッダーとメニューバー */
-    .header { background-color: #ffffff; padding: 1em 2em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .header h1 { margin: 0; font-size: 1.5em; color: #30343A; }
-    .menubar { background-color: #135389; padding: 0 2em; }
-    .menubar ul { margin: 0; padding: 0; list-style: none; display: flex; align-items: center; }
-    .menubar li a { display: block; padding: 0.8em 1em; color: white; text-decoration: none; font-weight: bold; cursor: pointer; }
-    .menubar li a:hover { background-color: rgba(255,255,255,0.1); }
-    .menubar .right { margin-left: auto; }
-
-    /* ポップアップモーダル */
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
-    .modal-content { background-color: white; padding: 2em; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-    .modal-content h2 { margin-top: 0; color: #135389; }
-    .close-button { float: right; cursor: pointer; font-size: 1.5em; line-height: 1; }
-    .error-message { color: red; background-color: #ffebee; border: 1px solid red; padding: 0.8em; margin-bottom: 1em; border-radius: 4px; display: none; }
-
-    /* フォーム関連 */
-    .form-group { margin-bottom: 1em; }
-    .form-group label { display: block; margin-bottom: 0.25em; font-weight: bold; }
-    .form-group select, .form-group input, .form-control { box-sizing: border-box; width: 100%; padding: 0.8em; border: 1px solid #ccc; border-radius: 4px; }
-    .modal-content form button { width: 100%; margin-top: 1em; }
-    .form-note { font-size: 0.8em; color: #666; margin-top: 1.5em; }
-
-    /* カードスタイル */
-    .account-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5em; }
-    .account-card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 1.5em; border: 1px solid #bbb; transition: transform 0.2s, box-shadow 0.2s; }
-
-    /* ★★★ START: ボタンスタイルの最終修正 V5 ★★★ */
-    .btn { /* すべてのボタンの共通スタイル（サイズ、形、改行禁止） */
-        display: inline-block;
-        padding: 0.8em 1.5em; /* ★サイズ/パディングをここで定義 */
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        /* font-weight: bold; ← ここでは太字にしない */
-        font-size: 1em; /* ★フォントサイズもここで定義 */
-        text-decoration: none;
-        white-space: nowrap; /* ★テキストの改行を防ぐ */
-        text-align: center;
-        transition: opacity 0.2s;
-        vertical-align: middle;
-        line-height: 1.5;
-    }
-    .btn:hover {
-        opacity: 0.85;
-    }
-    /* 太字にしたいボタンにだけ追加するクラス */
-    .btn-bold {
-        font-weight: bold;
-    }
-    /* 各色ボタンは色だけを指定 */
-    .btn-primary { background-color: #135389; color: white; }
-    .btn-secondary { background-color: #6c757d; color: white; }
-    .btn-success { background-color: #28a745; color: white; }
-    .btn-danger {
-         background-color: #dc3545; color: white;
-         /* 削除ボタンだけ少し小さくする場合 */
-         padding: 0.6em 1.2em; font-size: 0.9em; border-radius: 5px; border: none;
-    }
-    .btn-warning {
-        background-color: #ffc107; color: #212529; /* ← colorを修正 */
-        padding: 0.8em 1.5em; font-size: 1em; border-radius: 5px; border: none;
-    }
-    /* ★★★ END: ボタンスタイルの最終修正 V5 ★★★ */
-
-    /* Choices.js 最終版スタイル */
-    .choices {
-        position: relative;
-        margin-top: 0.5em;
-    }
-    .choices__inner {
-        box-sizing: border-box; /* ★幅の計算方法を統一 */
-        background-color: white;
-        border: 1px solid #bbb;
-        border-radius: 5px;
-        padding: 0.5em 1em;
-        min-height: 44px;
-        font-size: 1em;
-        color: #30343A;
-    }
-    .choices[data-type*='select-one'] .choices__item--selectable {
-         color: #30343A;
-         opacity: 1;
-    }
-    .choices__list--dropdown {
-        box-sizing: border-box; /* ★幅の計算方法を統一 */
-        position: absolute;
-        top: 100%;
-        width: 100%;
-        background-color: white;
-        border: 1px solid #bbb;
-        border-top: none;
-        border-radius: 0 0 5px 5px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        z-index: 10;
-        word-break: break-all;
-    }
-    .choices__list[aria-expanded] {
-        display: none;
-    }
-    .is-open .choices__list[aria-expanded] {
-        display: block;
-    }
-    .choices__item--choice.is-highlighted {
-        background-color: #f2f2f2;
-        color: #30343A;
-    }
-
-    /* イベント表示スタイル V2 */
-    .event {
-        border-radius: 4px;
-        padding: 0.4em 0.6em;
-        margin-top: 0.4em;
-        font-size: 0.9em;
-        display: block;
-        text-decoration: none;
-        white-space: normal;
-        word-break: break-all;
-        line-height: 1.3;
-        border-left: 3px solid transparent;
-    }
-    .event-incomplete { background-color: #ffebee; color: #c62828; border-left-color: #c62828; }
-    .event-completed { background-color: #e0f7fa; color: #007bff; border-left-color: #007bff; }
-    .event-editable { cursor: pointer; }
-    .event-editable.event-incomplete:hover { background-color: #ffcdd2; }
-    .event-editable.event-completed:hover { background-color: #b2ebf2; }
-    .event-readonly { background-color: #f5f5f5; color: #555; cursor: default; border-left-color: #ccc; }
-    /* 編集不可の完了イベントは灰色 */
-    .event-readonly.event-completed { background-color: #f5f5f5; color: #555; border-left-color: #ccc; }
-    /* 編集不可の未完了イベントは赤色 (編集可能と同じ色) */
-    .event-readonly.event-incomplete { background-color: #ffebee; color: #c62828; border-left-color: #c62828; }
+        /* (CSS部分は変更ありません) */
+        body { font-family: sans-serif; margin: 0; background-color: #f4f7f6; }
+        .content { padding: 2em; }
+        .header { background-color: #ffffff; padding: 1em 2em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 1.5em; color: #30343A; }
+        .menubar { background-color: #135389; padding: 0 2em; }
+        .menubar ul { margin: 0; padding: 0; list-style: none; display: flex; align-items: center; }
+        .menubar li a { display: block; padding: 0.8em 1em; color: white; text-decoration: none; font-weight: bold; cursor: pointer; }
+        .menubar li a:hover { background-color: rgba(255,255,255,0.1); }
+        .menubar .right { margin-left: auto; }
+        .form-group { margin-bottom: 1em; }
+        .form-group label { display: block; margin-bottom: 0.25em; font-weight: bold; }
+        .form-group select, .form-group input, .form-control { box-sizing: border-box; width: 100%; padding: 0.8em; border: 1px solid #ccc; border-radius: 4px; }
+        .account-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5em; }
+        .account-card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 1.5em; border: 1px solid #bbb; transition: transform 0.2s, box-shadow 0.2s; }
+        .btn { display: inline-block; padding: 0.8em 1.5em; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; white-space: nowrap; text-align: center; transition: opacity 0.2s; vertical-align: middle; line-height: 1.5; }
+        .btn:hover { opacity: 0.85; }
+        .btn-bold { font-weight: bold; }
+        .btn-primary { background-color: #135389; color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; padding: 0.6em 1.2em; font-size: 0.9em; border-radius: 5px; border: none; }
+        .btn-warning { background-color: #ffc107; color: #212529; padding: 0.8em 1.5em; font-size: 1em; border-radius: 5px; border: none; }
+        .choices { position: relative; margin-top: 0.5em; }
+        .choices__inner { box-sizing: border-box; background-color: white; border: 1px solid #bbb; border-radius: 5px; padding: 0.5em 1em; min-height: 44px; font-size: 1em; color: #30343A; }
+        .choices[data-type*='select-one'] .choices__item--selectable { color: #30343A; opacity: 1; }
+        .choices__list--dropdown { box-sizing: border-box; position: absolute; top: 100%; width: 100%; background-color: white; border: 1px solid #bbb; border-top: none; border-radius: 0 0 5px 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); z-index: 10; word-break: break-all; }
+        .choices__list[aria-expanded] { display: none; }
+        .is-open .choices__list[aria-expanded] { display: block; }
+        .choices__item--choice.is-highlighted { background-color: #f2f2f2; color: #30343A; }
+        .event { border-radius: 4px; padding: 0.4em 0.6em; margin-top: 0.4em; font-size: 0.9em; display: block; text-decoration: none; white-space: normal; word-break: break-all; line-height: 1.3; border-left: 3px solid transparent; }
+        .event-incomplete { background-color: #ffebee; color: #c62828; border-left-color: #c62828; }
+        .event-completed { background-color: #e0f7fa; color: #007bff; border-left-color: #007bff; }
+        .event-editable { cursor: pointer; }
+        .event-editable.event-incomplete:hover { background-color: #ffcdd2; }
+        .event-editable.event-completed:hover { background-color: #b2ebf2; }
+        .event-readonly { background-color: #f5f5f5; color: #555; cursor: default; border-left-color: #ccc; }
+        .event-readonly.event-completed { background-color: #f5f5f5; color: #555; border-left-color: #ccc; }
+        .event-readonly.event-incomplete { background-color: #ffebee; color: #c62828; border-left-color: #c62828; }
     </style>
 </head>
 <body>
@@ -157,116 +61,19 @@
                 {% if request.session.user_role == '教員' or request.session.user_role == '実行委員長' %}
                 <li><a href="{% url 'approval_list' %}">許可</a></li>
                 {% endif %}
-                <li class="right"><a id="loginBtn">アカウント追加</a></li>
-                <li><a href="{% url 'logout' %}">ログアウト</a></li>
+                <li class="right"><a href="{% url 'logout' %}">ログアウト</a></li>
             {% else %}
                 <li><a href="{% url 'landing' %}">ホーム</a></li>
-                <li class="right"><a id="loginBtn">ログイン</a></li>
-                {% endif %}
+                <li class="right"><a href="{% url 'request_login_code' %}">ログイン</a></li>
+            {% endif %}
         </ul>
     </nav>
     <main class="content">
         {% block content %}{% endblock %}
     </main>
-    <div id="loginModal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="close-button" id="closeBtn">&times;</span>
-            <h2>ログイン / アカウント追加</h2>
-            <div id="loginError" class="error-message"></div>
-            <form id="loginForm">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label for="id_role">役職:</label>
-                    <select name="role" id="id_role" required>
-                        <option value="" disabled selected>選択してください</option>
-                        {% for value, text in login_form.fields.role.choices %}
-                            <option value="{{ value }}">{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group sub-group" id="committee-group" style="display: none;">
-                    <label for="id_committee">所属委員会:</label>
-                    <select name="committee" id="id_committee">
-                        {% for value, text in login_form.fields.committee.choices %}
-                            <option value="{{ value }}">{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group sub-group" id="club-group" style="display: none;">
-                    <label for="id_club">所属部活動:</label>
-                    <select name="club" id="id_club">
-                        {% for value, text in login_form.fields.club.choices %}
-                            <option value="{{ value }}">{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group sub-group" id="class-exhibit-group" style="display: none;">
-                    <label for="id_class_exhibit">担当クラス:</label>
-                    <select name="class_exhibit" id="id_class_exhibit">
-                        {% for value, text in login_form.fields.class_exhibit.choices %}
-                            <option value="{{ value }}">{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="id_name">氏名:</label>
-                    <input type="text" name="name" id="id_name" required>
-                </div>
-                <div class="form-group">
-                    <label for="id_email">メールアドレス:</label>
-                    <input type="email" name="email" id="id_email" required>
-                </div>
-                <button type="submit" class="btn btn-primary">ログイン</button>
-                <p class="form-note">
-                    ※部活動の顧問の先生は"部活動関係者"の役職にしてください。<br>
-                    氏名やメールアドレスは連絡やバックアップに使用します。
-                </p>
-            </form>
-        </div>
-    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const loginModal = document.getElementById('loginModal');
-            const loginBtn = document.getElementById('loginBtn');
-            const closeBtn = document.getElementById('closeBtn');
-            const loginForm = document.getElementById('loginForm');
-            const loginError = document.getElementById('loginError');
-            if (loginBtn) { loginBtn.addEventListener('click', () => { loginModal.style.display = 'flex'; }); }
-            if (closeBtn) { closeBtn.addEventListener('click', () => { loginModal.style.display = 'none'; loginError.style.display = 'none'; }); }
-            window.addEventListener('click', (event) => {
-                if (event.target == loginModal) { loginModal.style.display = 'none'; loginError.style.display = 'none'; }
-            });
-            const roleSelect = document.getElementById('id_role');
-            const subGroups = document.querySelectorAll('.sub-group');
-            roleSelect.addEventListener('change', function() {
-                subGroups.forEach(group => group.style.display = 'none');
-                const selectedRole = this.value;
-                let targetGroup = null;
-                if (selectedRole === '委員長') { targetGroup = document.getElementById('committee-group'); }
-                else if (selectedRole === '部活動関係者') { targetGroup = document.getElementById('club-group'); }
-                else if (selectedRole === 'クラス展示関係者') { targetGroup = document.getElementById('class-exhibit-group'); }
-                if (targetGroup) { targetGroup.style.display = 'block'; }
-            });
-            loginForm.addEventListener('submit', function(event) {
-                event.preventDefault();
-                const formData = new FormData(loginForm);
-                const data = Object.fromEntries(formData.entries());
-                const csrfToken = data.csrfmiddlewaretoken;
-                fetch("{% url 'ajax_login' %}", { // ajax_loginを呼び出す
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify(data)
-                })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) { window.location.href = result.redirect_url; }
-                    else { loginError.textContent = result.error; loginError.style.display = 'block'; }
-                });
-            });
-        });
-    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

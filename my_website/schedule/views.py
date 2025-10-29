@@ -68,13 +68,12 @@ class EventCreateView(CalendarPermissionMixin, CreateView):
         return reverse_lazy('calendar', kwargs={'year': start_time.year, 'month': start_time.month})
 
 # --- イベント編集ビュー ---
-class EventUpdateView(UserPassesTestMixin, UpdateView): # ★UserPassesTestMixin を追加
+class EventUpdateView(UserPassesTestMixin, UpdateView): 
     model = Event
     form_class = EventForm
     template_name = 'schedule/event_form.html'
 
     def test_func(self):
-        # ★ここから権限チェックロジック
         # 1. 許可された役職か確認
         role = self.request.session.get('user_role')
         if role not in ['実行委員長', '委員長', '教員']:
@@ -87,19 +86,18 @@ class EventUpdateView(UserPassesTestMixin, UpdateView): # ★UserPassesTestMixin
             return False
         
         return event.created_by_id == login_request_id
-        # ★ここまで
 
     def get_success_url(self):
         start_time = self.object.start_time.astimezone(timezone.get_current_timezone())
         return reverse_lazy('calendar', kwargs={'year': start_time.year, 'month': start_time.month})
 
 # --- イベント削除ビュー ---
-class EventDeleteView(UserPassesTestMixin, DeleteView): # ★UserPassesTestMixin を追加
+class EventDeleteView(UserPassesTestMixin, DeleteView): 
     model = Event
     template_name = 'schedule/event_confirm_delete.html'
 
     def test_func(self):
-        # ★編集ビューと全く同じ権限チェックロジック
+        # 編集ビューと全く同じ権限チェックロジック
         role = self.request.session.get('user_role')
         if role not in ['実行委員長', '委員長', '教員']:
             return False
@@ -115,6 +113,7 @@ class EventDeleteView(UserPassesTestMixin, DeleteView): # ★UserPassesTestMixin
         start_time = self.object.start_time.astimezone(timezone.get_current_timezone())
         return reverse_lazy('calendar', kwargs={'year': start_time.year, 'month': start_time.month})
 
+# --- イベント完了/未完了トグルビュー ---
 def toggle_event_completion(request, pk):
     event = get_object_or_404(Event, pk=pk)
     login_request_id = request.session.get('login_request_id')
