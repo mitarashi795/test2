@@ -4,8 +4,46 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.views import View
 import json
 
+from .forms import CustomLoginForm
 from .models import LoginRequest
 
+# --- ログイン処理 ---
+def custom_login(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        form = CustomLoginForm(data)
+        if form.is_valid():
+            role = form.cleaned_data['role']
+            # 「クラス展示関係者」も自動承認の対象に追加
+            is_approved = role in ['教員', '部活動関係者', 'クラス展示関係者']
+
+            login_request = LoginRequest.objects.create(
+                name=form.cleaned_data['name'],
+                email=form.cleaned_data['email'],
+                role=role,
+                committee=form.cleaned_data.get('committee'),
+                club=form.cleaned_data.get('club'),
+                class_exhibit=form.cleaned_data.get('class_exhibit'),
+                is_approved=is_approved
+            )
+
+            # セッションにアカウントIDのリストを保存・更新
+            my_account_ids = request.session.get('my_account_ids', [])
+            my_account_ids.append(login_request.id)
+            request.session['my_account_ids'] = my_account_ids
+
+            # 現在アクティブなアカウントとして設定
+            request.session['login_request_id'] = login_request.id
+            request.session['user_role'] = login_request.role
+
+            redirect_url = '/dashboard/' if is_approved else '/wait_for_approval/'
+            return JsonResponse({'success': True, 'redirect_url': redirect_url})
+        else:
+            # フォームが無効な場合のエラー詳細を取得 (デバッグ用)
+            errors = form.errors.as_json()
+            print(f"Form errors: {errors}") # ターミナルにエラー表示
+            return JsonResponse({'success': False, 'error': '入力内容に誤りがあります。'})
+    return JsonResponse({'success': False, 'error': '不正なリクエストです。'})
 
 # --- ログアウト処理 ---
 def custom_logout(request):
@@ -95,6 +133,7 @@ def approve_request(request, pk):
     if not can_approve:
         return HttpResponseForbidden("承認権限がありません。")
 
+    # ★ 安全のためPOSTリクエストのみ受け付けるように修正
     if request.method == 'POST':
         request_to_approve.is_approved = True
         request_to_approve.save()
@@ -104,7 +143,7 @@ def approve_request(request, pk):
 # --- トップページ（ランディングページ） ---
 class LandingPageView(View):
     def get(self, request, *args, **kwargs):
-        # ★★★ ここを 'accounts/landing.html' に修正 ★★★
+        # ★ 'accounts/landing.html' にパスを修正
         return render(request, 'accounts/landing.html')
 
 # --- ダッシュボード ---
@@ -117,5 +156,5 @@ class DashboardView(View):
         if not login_request.is_approved and login_request.role in ['実行委員長', '委員長']:
             return redirect('wait_for_approval')
 
-        # ★★★ ここも 'accounts/dashboard.html' に修正 ★★★
+        # ★ 'accounts/dashboard.html' にパスを修正
         return render(request, 'accounts/dashboard.html', {'login_request': login_request})

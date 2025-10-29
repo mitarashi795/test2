@@ -1,8 +1,8 @@
-# accounts/forms.py (この内容で全体を置き換え)
+# accounts/forms.py (この内容で全体を置き換えてください)
 from django import forms
 from .models import LoginRequest # ★ LoginRequestをインポート
 
-# (ROLE_CHOICES, COMMITTEE_CHOICES, CLUB_CHOICES, CLASS_EXHIBIT_CHOICES はそのまま)
+# 役職の選択肢を更新
 ROLE_CHOICES = [
     ('教員', '教員'),
     ('実行委員長', '実行委員長'),
@@ -10,6 +10,8 @@ ROLE_CHOICES = [
     ('部活動関係者', '部活動関係者'),
     ('クラス展示関係者', 'クラス展示関係者'),
 ]
+
+# 委員会の選択肢
 COMMITTEE_CHOICES = [
     ('', '選択してください'),
     ('企画', '企画'), ('会計', '会計'), ('音響', '音響'),
@@ -17,20 +19,50 @@ COMMITTEE_CHOICES = [
     ('模擬店', '模擬店'), ('交通', '交通'), ('若潮丸', '若潮丸'),
     ('本郷C連携', '本郷C連携'),
 ]
+
+# 部活動のリスト
 CLUB_CHOICES = [
     ('', '選択してください'),
-    ('柔道', '柔道'), ('サッカー', 'サッカー'), ('卓球', '卓球'),
-    # ... (リストを省略) ...
+    ('柔道', '柔道'),
+    ('サッカー', 'サッカー'),
+    ('卓球', '卓球'),
+    ('テニス', 'テニス'),
+    ('バドミントン', 'バドミントン'),
+    ('バレーボール', 'バレーボール'),
+    ('野球', '野球'),
+    ('ラグビー', 'ラグビー'),
+    ('陸上', '陸上'),
+    ('バスケットボール', 'バスケットボール'),
+    ('剣道', '剣道'),
+    ('水泳', '水泳'),
+    ('カッター', 'カッター'),
+    ('ヨット', 'ヨット'),
+    ('ダンス', 'ダンス'),
+    ('吹奏楽', '吹奏楽'),
+    ('軽音楽', '軽音楽'),
+    ('茶道', '茶道'),
+    ('美術', '美術'),
+    ('デジタルメディア創作', 'デジタルメディア創作'),
+    ('新聞', '新聞'),
+    ('メカトロ技術研究', 'メカトロ技術研究'),
+    ('アントレプレナー研究', 'アントレプレナー研究'),
+    ('文芸', '文芸'),
+    ('機関学', '機関学'),
     ('書道', '書道'),
 ]
+
+# クラス展示のリスト
 CLASS_EXHIBIT_CHOICES = [
     ('', '選択してください'),
     ('S1', 'S1'), ('K1', 'K1'), ('I1', 'I1'),
-    # ... (リストを省略) ...
+    ('S2', 'S2'), ('K2', 'K2'), ('I2', 'I2'),
+    ('S3', 'S3'), ('K3', 'K3'), ('I3', 'I3'),
+    ('S4', 'S4'), ('K4', 'K4'), ('I4', 'I4'),
+    ('S5', 'S5'), ('K5', 'K5'), ('I5', 'I5'),
     ('専攻科', '専攻科'),
 ]
 
-# ★ CustomLoginForm は削除 (またはコメントアウト)
+# ★ CustomLoginFormはメール認証に移行するため不要 (削除)
 # class CustomLoginForm(forms.Form): ...
 
 # メールアドレス入力フォーム
@@ -41,7 +73,7 @@ class EmailForm(forms.Form):
 class VerifyCodeForm(forms.Form):
     code = forms.CharField(label='認証コード (6桁)', max_length=6, min_length=6, widget=forms.TextInput(attrs={'inputmode': 'numeric', 'autocomplete': 'one-time-code', 'class': 'form-control'}))
 
-# ★ 初回プロフィール更新用フォーム
+# ★★★ 不足していた ProfileUpdateForm を追加 ★★★
 class ProfileUpdateForm(forms.ModelForm):
     # 役職の選択肢を動的に設定
     role = forms.ChoiceField(label='役職', choices=ROLE_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
