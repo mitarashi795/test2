@@ -1,126 +1,211 @@
 # accounts/views.py (この内容で全体を置き換えてください)
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.views import View
+from django.core.mail import send_mail
+from django.utils import timezone
+from django.contrib.auth.hashers import make_password, check_password
+from django.urls import reverse_lazy
+from datetime import timedelta
+import random
 import json
 
-from .forms import CustomLoginForm
+# ★ フォームのインポートを更新
+from .forms import EmailForm, VerifyCodeForm, ProfileUpdateForm
 from .models import LoginRequest
 
-# --- ログイン処理 ---
-def custom_login(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        form = CustomLoginForm(data)
-        if form.is_valid():
-            role = form.cleaned_data['role']
-            # 「クラス展示関係者」も自動承認の対象に追加
-            is_approved = role in ['教員', '部活動関係者', 'クラス展示関係者']
+# --- ログイン保護デコレータ ---
+def login_required_custom(view_func):
+    def wrapper(request, *args, **kwargs):
+        if not request.session.get('login_request_id'):
+            return redirect('request_login_code') # メールアドレス入力ページへ
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
-            login_request = LoginRequest.objects.create(
-                name=form.cleaned_data['name'],
-                email=form.cleaned_data['email'],
-                role=role,
-                committee=form.cleaned_data.get('committee'),
-                club=form.cleaned_data.get('club'),
-                class_exhibit=form.cleaned_data.get('class_exhibit'),
-                is_approved=is_approved
+# --- メールアドレス入力 & コード送信 ---
+class RequestLoginCodeView(View):
+    def get(self, request, *args, **kwargs):
+        if request.session.get('login_request_id'):
+            return redirect('dashboard')
+        form = EmailForm()
+        return render(request, 'accounts/request_code.html', {'form': form})
+
+    def post(self, request, *args, **kwargs):
+        if request.session.get('login_request_id'):
+            return redirect('dashboard')
+        form = EmailForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            
+            # メールアドレスでユーザーを検索、なければ新規作成 (仮登録)
+            login_request, created = LoginRequest.objects.get_or_create(
+                email=email,
+                defaults={'name': email.split('@')[0], 'role': '部活動関係者'} # 仮の役職 (承認不要なもの)
             )
 
-            # セッションにアカウントIDのリストを保存・更新
-            my_account_ids = request.session.get('my_account_ids', [])
-            my_account_ids.append(login_request.id)
-            request.session['my_account_ids'] = my_account_ids
+            code = str(random.randint(100000, 999999))
+            expiry_time = timezone.now() + timedelta(minutes=10) # 10分間有効
 
-            # 現在アクティブなアカウントとして設定
-            request.session['login_request_id'] = login_request.id
-            request.session['user_role'] = login_request.role
+            login_request.otp_code_hash = make_password(code)
+            login_request.otp_expiry = expiry_time
+            login_request.save()
 
-            redirect_url = '/dashboard/' if is_approved else '/wait_for_approval/'
-            return JsonResponse({'success': True, 'redirect_url': redirect_url})
-        else:
-            # フォームが無効な場合のエラー詳細を取得 (デバッグ用)
-            errors = form.errors.as_json()
-            print(f"Form errors: {errors}") # ターミナルにエラー表示
-            return JsonResponse({'success': False, 'error': '入力内容に誤りがあります。'})
-    return JsonResponse({'success': False, 'error': '不正なリクエストです。'})
+            # メール送信
+            subject = '認証コードのお知らせ'
+            message = f'認証コードは {code} です。10分以内にご入力ください。'
+            from_email = 'noreply@yourdomain.com' # settings.pyのDEFAULT_FROM_EMAIL推奨
+            recipient_list = [email]
+            
+            try:
+                # settings.pyのEMAIL_BACKEND設定により、開発中はコンソールに出力されます
+                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+            except Exception as e:
+                print(f"メール送信エラー: {e}") # ターミナルにログ出力
+                form.add_error(None, 'メールの送信に失敗しました。時間をおいて再試行してください。')
+                return render(request, 'accounts/request_code.html', {'form': form})
+
+            request.session['login_email_pending'] = email
+            return redirect('verify_login_code')
+
+        return render(request, 'accounts/request_code.html', {'form': form})
+
+# --- コード検証 & ログイン ---
+class VerifyLoginCodeView(View):
+    def get(self, request, *args, **kwargs):
+        email = request.session.get('login_email_pending')
+        if not email:
+            return redirect('request_login_code')
+        form = VerifyCodeForm()
+        return render(request, 'accounts/verify_code.html', {'form': form, 'email': email})
+
+    def post(self, request, *args, **kwargs):
+        email = request.session.get('login_email_pending')
+        if not email:
+            return redirect('request_login_code')
+
+        form = VerifyCodeForm(request.POST)
+        if form.is_valid():
+            code = form.cleaned_data['code']
+            try:
+                login_request = LoginRequest.objects.get(email=email)
+
+                # コードと有効期限をチェック
+                if (login_request.otp_code_hash and
+                        check_password(code, login_request.otp_code_hash) and
+                        login_request.otp_expiry and
+                        login_request.otp_expiry > timezone.now()):
+
+                    login_request.otp_code_hash = None
+                    login_request.otp_expiry = None
+                    login_request.save()
+
+                    # セッションにログイン情報を保存し、有効期限を1週間に設定
+                    request.session['login_request_id'] = login_request.id
+                    request.session['user_role'] = login_request.role
+                    request.session.set_expiry(timedelta(weeks=1)) # 1週間
+
+                    if 'login_email_pending' in request.session:
+                        del request.session['login_email_pending']
+                    
+                    # 役職や氏名が未設定（仮登録のまま）なら、プロフィール更新ページへ
+                    if login_request.name == email.split('@')[0]:
+                         return redirect('profile_update')
+
+                    # 承認が必要な役職かチェック
+                    elif login_request.role in ['実行委員長', '委員長'] and not login_request.is_approved:
+                         return redirect('wait_for_approval')
+                    else:
+                         return redirect('dashboard')
+                else:
+                    form.add_error('code', '認証コードが正しくないか、有効期限が切れています。')
+
+            except LoginRequest.DoesNotExist:
+                 return redirect('request_login_code')
+
+        return render(request, 'accounts/verify_code.html', {'form': form, 'email': email})
+
+# --- プロフィール更新ページ (初回ログイン時など) ---
+@login_required_custom
+def profile_update_view(request):
+    login_request_id = request.session.get('login_request_id')
+    user_profile = get_object_or_404(LoginRequest, id=login_request_id)
+
+    if request.method == 'POST':
+        form = ProfileUpdateForm(request.POST, instance=user_profile)
+        if form.is_valid():
+            updated_profile = form.save(commit=False)
+            # セッションの役職も更新
+            request.session['user_role'] = updated_profile.role 
+            updated_profile.save()
+            
+            if updated_profile.role in ['実行委員長', '委員長'] and not updated_profile.is_approved:
+                return redirect('wait_for_approval')
+            return redirect('dashboard')
+    else:
+        form = ProfileUpdateForm(instance=user_profile)
+
+    return render(request, 'accounts/profile_form.html', {'form': form})
+
 
 # --- ログアウト処理 ---
 def custom_logout(request):
-    # セッションからアカウント関連の情報をすべて削除
     for key in list(request.session.keys()):
-        if not key.startswith('_'): # Django内部キー以外
+        if not key.startswith('_'):
              del request.session[key]
-    return redirect('landing') # ログアウト後はトップページ
+    return redirect('landing')
 
-# --- アカウント一覧ページ ---
-class AccountListView(View):
+# --- トップページ（ランディングページ） ---
+class LandingPageView(View):
     def get(self, request, *args, **kwargs):
-        my_account_ids = request.session.get('my_account_ids', [])
-        if not my_account_ids:
-             if not request.session.get('login_request_id'):
-                 return redirect('landing')
-             my_account_ids = [request.session.get('login_request_id')]
-
-        my_accounts = LoginRequest.objects.filter(id__in=my_account_ids).order_by('-timestamp')
-        context = {
-            'my_accounts': my_accounts,
-        }
-        return render(request, 'accounts/account_list.html', context)
-
-# --- アカウント切り替え処理 ---
-def switch_account(request, pk):
-    my_account_ids = request.session.get('my_account_ids', [])
-    login_request_id = request.session.get('login_request_id')
-
-    if not login_request_id:
-        return redirect('landing')
-
-    if pk in my_account_ids:
-        account_to_switch = get_object_or_404(LoginRequest, pk=pk)
-        request.session['login_request_id'] = account_to_switch.id
-        request.session['user_role'] = account_to_switch.role
-
-        if account_to_switch.is_approved:
+        if request.session.get('login_request_id'):
             return redirect('dashboard')
-        else:
-            return redirect('wait_for_approval')
+        return render(request, 'accounts/landing.html') # ★パスを修正
 
-    return redirect('account_list')
+# --- ダッシュボード (ログイン保護) ---
+@login_required_custom
+def dashboard_view(request):
+    login_request_id = request.session.get('login_request_id')
+    login_request = get_object_or_404(LoginRequest, id=login_request_id)
+    if not login_request.is_approved and login_request.role in ['実行委員長', '委員長']:
+        return redirect('wait_for_approval')
+    return render(request, 'accounts/dashboard.html', {'login_request': login_request})
 
-# --- 承認待ちページ ---
-class WaitForApprovalView(View):
-    def get(self, request, *args, **kwargs):
-        login_request_id = request.session.get('login_request_id')
-        if not login_request_id: return redirect('landing')
-        login_request = get_object_or_404(LoginRequest, id=login_request_id)
-        if login_request.is_approved: return redirect('dashboard')
-        return render(request, 'accounts/wait_for_approval.html', {'login_request': login_request})
+# --- アカウント一覧 (ログイン保護) ---
+@login_required_custom
+def account_list_view(request):
+    login_request_id = request.session.get('login_request_id')
+    my_accounts = LoginRequest.objects.filter(id=login_request_id) # アカウント切り替えは廃止
+    context = {'my_accounts': my_accounts}
+    return render(request, 'accounts/account_list.html', context)
 
-# --- 承認リストページ ---
-class ApprovalListView(View):
-    def get(self, request, *args, **kwargs):
-        login_request_id = request.session.get('login_request_id')
-        if not login_request_id: return redirect('landing')
+# --- 承認待ちページ (ログイン保護) ---
+@login_required_custom
+def wait_for_approval_view(request):
+    login_request_id = request.session.get('login_request_id')
+    login_request = get_object_or_404(LoginRequest, id=login_request_id)
+    if login_request.is_approved: return redirect('dashboard')
+    return render(request, 'accounts/wait_for_approval.html', {'login_request': login_request})
 
-        current_user = get_object_or_404(LoginRequest, id=login_request_id)
-        if current_user.role not in ['教員', '実行委員長']:
-            return HttpResponseForbidden("アクセス権限がありません。")
+# --- 承認リストページ (ログイン保護 + 権限チェック) ---
+@login_required_custom
+def approval_list_view(request):
+    login_request_id = request.session.get('login_request_id')
+    current_user = get_object_or_404(LoginRequest, id=login_request_id)
+    if current_user.role not in ['教員', '実行委員長']:
+        return HttpResponseForbidden("アクセス権限がありません。")
 
-        pending_requests = []
-        if current_user.role == '教員':
-            pending_requests = LoginRequest.objects.filter(role='実行委員長', is_approved=False).order_by('timestamp')
-        elif current_user.role == '実行委員長':
-            pending_requests = LoginRequest.objects.filter(role='委員長', is_approved=False).order_by('timestamp')
+    pending_requests = []
+    if current_user.role == '教員':
+        pending_requests = LoginRequest.objects.filter(role='実行委員長', is_approved=False).order_by('timestamp')
+    elif current_user.role == '実行委員長':
+        pending_requests = LoginRequest.objects.filter(role='委員長', is_approved=False).order_by('timestamp')
+    context = {'current_user': current_user, 'pending_requests': pending_requests}
+    return render(request, 'accounts/approval_list.html', context)
 
-        context = {'current_user': current_user, 'pending_requests': pending_requests}
-        return render(request, 'accounts/approval_list.html', context)
-
-# --- 承認アクション ---
+# --- 承認アクション (ログイン保護 + 権限チェック) ---
+@login_required_custom
 def approve_request(request, pk):
     approver_id = request.session.get('login_request_id')
-    if not approver_id: return redirect('landing')
-
     approver = get_object_or_404(LoginRequest, id=approver_id)
     request_to_approve = get_object_or_404(LoginRequest, pk=pk)
 
@@ -133,28 +218,8 @@ def approve_request(request, pk):
     if not can_approve:
         return HttpResponseForbidden("承認権限がありません。")
 
-    # ★ 安全のためPOSTリクエストのみ受け付けるように修正
     if request.method == 'POST':
         request_to_approve.is_approved = True
         request_to_approve.save()
     
     return redirect('approval_list')
-
-# --- トップページ（ランディングページ） ---
-class LandingPageView(View):
-    def get(self, request, *args, **kwargs):
-        # ★ 'accounts/landing.html' にパスを修正
-        return render(request, 'accounts/landing.html')
-
-# --- ダッシュボード ---
-class DashboardView(View):
-    def get(self, request, *args, **kwargs):
-        login_request_id = request.session.get('login_request_id')
-        if not login_request_id: return redirect('landing')
-
-        login_request = get_object_or_404(LoginRequest, id=login_request_id)
-        if not login_request.is_approved and login_request.role in ['実行委員長', '委員長']:
-            return redirect('wait_for_approval')
-
-        # ★ 'accounts/dashboard.html' にパスを修正
-        return render(request, 'accounts/dashboard.html', {'login_request': login_request})

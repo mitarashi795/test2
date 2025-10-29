@@ -23,32 +23,15 @@ COMMITTEE_CHOICES = [
 # 部活動のリスト
 CLUB_CHOICES = [
     ('', '選択してください'),
-    ('柔道', '柔道'),
-    ('サッカー', 'サッカー'),
-    ('卓球', '卓球'),
-    ('テニス', 'テニス'),
-    ('バドミントン', 'バドミントン'),
-    ('バレーボール', 'バレーボール'),
-    ('野球', '野球'),
-    ('ラグビー', 'ラグビー'),
-    ('陸上', '陸上'),
-    ('バスケットボール', 'バスケットボール'),
-    ('剣道', '剣道'),
-    ('水泳', '水泳'),
-    ('カッター', 'カッター'),
-    ('ヨット', 'ヨット'),
-    ('ダンス', 'ダンス'),
-    ('吹奏楽', '吹奏楽'),
-    ('軽音楽', '軽音楽'),
-    ('茶道', '茶道'),
-    ('美術', '美術'),
-    ('デジタルメディア創作', 'デジタルメディア創作'),
-    ('新聞', '新聞'),
-    ('メカトロ技術研究', 'メカトロ技術研究'),
-    ('アントレプレナー研究', 'アントレプレナー研究'),
-    ('文芸', '文芸'),
-    ('機関学', '機関学'),
-    ('書道', '書道'),
+    ('柔道', '柔道'), ('サッカー', 'サッカー'), ('卓球', '卓球'),
+    ('テニス', 'テニス'), ('バドミントン', 'バドミントン'), ('バレーボール', 'バレーボール'),
+    ('野球', '野球'), ('ラグビー', 'ラグビー'), ('陸上', '陸上'),
+    ('バスケットボール', 'バスケットボール'), ('剣道', '剣道'), ('水泳', '水泳'),
+    ('カッター', 'カッター'), ('ヨット', 'ヨット'), ('ダンス', 'ダンス'),
+    ('吹奏楽', '吹奏楽'), ('軽音楽', '軽音楽'), ('茶道', '茶道'),
+    ('美術', '美術'), ('デジタルメディア創作', 'デジタルメディア創作'), ('新聞', '新聞'),
+    ('メカトロ技術研究', 'メカトロ技術研究'), ('アントレプレナー研究', 'アントレプレナー研究'),
+    ('文芸', '文芸'), ('機関学', '機関学'), ('書道', '書道'),
 ]
 
 # クラス展示のリスト
@@ -62,8 +45,7 @@ CLASS_EXHIBIT_CHOICES = [
     ('専攻科', '専攻科'),
 ]
 
-# ★ CustomLoginFormはメール認証に移行するため不要 (削除)
-# class CustomLoginForm(forms.Form): ...
+# ★ CustomLoginForm は削除
 
 # メールアドレス入力フォーム
 class EmailForm(forms.Form):
@@ -73,9 +55,8 @@ class EmailForm(forms.Form):
 class VerifyCodeForm(forms.Form):
     code = forms.CharField(label='認証コード (6桁)', max_length=6, min_length=6, widget=forms.TextInput(attrs={'inputmode': 'numeric', 'autocomplete': 'one-time-code', 'class': 'form-control'}))
 
-# ★★★ 不足していた ProfileUpdateForm を追加 ★★★
+# ★ 初回プロフィール更新用フォーム
 class ProfileUpdateForm(forms.ModelForm):
-    # 役職の選択肢を動的に設定
     role = forms.ChoiceField(label='役職', choices=ROLE_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
     committee = forms.ChoiceField(label='所属委員会', choices=COMMITTEE_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
     club = forms.ChoiceField(label='所属部活動', choices=CLUB_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
