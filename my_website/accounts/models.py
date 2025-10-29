@@ -1,8 +1,9 @@
+# accounts/models.py
 from django.db import models
-from django.utils import timezone # ★追加
+from django.utils import timezone
+from datetime import timedelta
 
 class LoginRequest(models.Model):
-    # 役職の選択肢をforms.pyと合わせる
     ROLE_CHOICES = [
         ('教員', '教員'),
         ('実行委員長', '実行委員長'),
@@ -12,14 +13,13 @@ class LoginRequest(models.Model):
     ]
 
     name = models.CharField("氏名", max_length=100)
-    email = models.EmailField("メールアドレス")
+    # ★★★ ここに unique=True を追加 ★★★
+    email = models.EmailField("メールアドレス", unique=True)
+    
     role = models.CharField("役職", max_length=50, choices=ROLE_CHOICES)
     committee = models.CharField("所属委員会", max_length=50, blank=True, null=True)
-    
-    # 新しいフィールドを2つ追加
     club = models.CharField("所属部活動", max_length=50, blank=True, null=True)
     class_exhibit = models.CharField("担当クラス", max_length=50, blank=True, null=True)
-
     is_approved = models.BooleanField("承認済み", default=False)
     timestamp = models.DateTimeField("ログイン日時", auto_now_add=True)
 

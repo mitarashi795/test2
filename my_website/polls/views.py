@@ -101,7 +101,6 @@ def poll_detail_view(request, pk):
             choices.append({
                 'value': str(choice.id), # 文字列に変換
                 'label': choice.text,
-                'customProperties': { 'reading': '' } # よみがな廃止のため空
             })
         choices_data[question.id] = choices
         
