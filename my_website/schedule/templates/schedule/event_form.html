@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>{% if object %}イベントの編集{% else %}新しいイベントの作成{% endif %}</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-bold btn-primary">保存する</button>
+        <a href="{% if object %}{% url 'calendar' object.start_time.year object.start_time.month %}{% else %}{% url 'calendar_root' %}{% endif %}"><button type="button" class="btn btn-bold btn-secondary">キャンセル</button></a>
+    </form>
+
+    {% if object %}
+        <div style="margin-top: 2em; display: flex; justify-content: flex-end; gap: 1em; border-top: 1px solid #ddd; padding-top: 1em;">
+            <form method="post" action="{% url 'event_toggle_completion' object.pk %}" style="margin: 0;">
+                {% csrf_token %}
+                {% if object.completed %}
+                    <button type="submit" class="btn btn-bold btn-secondary">未完了に戻す</button>
+                {% else %}
+                    <button type="submit" class="btn btn-bold btn-success">完了にする</button>
+                {% endif %}
+            </form>
+            <a href="{% url 'event_delete' object.pk %}">
+                <button type="button" class="btn btn-bold btn-danger">削除する</button>
+            </a>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    flatpickr(".flatpickr-datetime", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+    });
+});
+</script>
+{% endblock %}

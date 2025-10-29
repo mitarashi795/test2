@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5em;">
+        <h2>投票の管理</h2>
+        <a href="{% url 'poll_list' %}"><button class="btn btn-secondary">投票一覧に戻る</button></a>
+    </div>
+
+    <div class="account-list">
+        {% for poll in object_list %}
+            <div class="account-card">
+                <h3>{{ poll.title }}</h3>
+                <p>{{ poll.description|truncatewords:20 }}</p>
+                <p style="font-size: 0.8em; color: #666;">作成日時: {{ poll.created_at|date:"Y/m/d H:i" }}</p>
+                <div class="actions" style="display: flex; gap: 0.5em; justify-content: flex-end;">
+                    <a href="{% url 'poll_results' poll.pk %}"><button class="btn btn-secondary">結果を見る</button></a>
+                    <a href="{% url 'poll_manage_detail' poll.pk %}"><button class="btn btn-primary">詳細設定</button></a>
+                </div>
+            </div>
+        {% empty %}
+            <p>あなたが作成した投票はありません。</p>
+        {% endfor %}
+    </div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>質問の追加: {{ poll.title }}</h2>
+    
+    {% if error %} <p style="color: red; font-weight: bold;">{{ error }}</p> {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_question_text">質問文</label>
+            <input type="text" name="question_text" id="id_question_text" required>
+        </div>
+        <div class="form-group">
+            <label for="id_question_type">質問タイプ</label>
+            <select name="question_type" id="id_question_type">
+                <option value="CHOICE">選択式</option>
+                <option value="TEXT">文字入力</option>
+                <option value="PHOTO">写真アップロード</option>
+            </select>
+        </div>
+        
+        <div id="calculate-sum-group" class="form-group" style="display: none;">
+            <input type="checkbox" name="calculate_sum" id="id_calculate_sum">
+            <label for="id_calculate_sum">回答された数値を合計する</label>
+        </div>
+        
+        <div id="choice-fields-container">
+            <label>選択肢</label>
+            <div class="form-group choice-item">
+                <input type="text" name="choice_text" placeholder="選択肢 1" id="id_choice_text_1">
+            </div>
+        </div>
+        <button type="button" id="add-choice-btn" class="btn btn-secondary" style="margin-bottom: 1.5em;">＋ 選択肢を追加</button>
+
+        <div style="display: flex; gap: 1em; margin-top: 1em;">
+             <button type="submit" name="add_another" class="btn btn-primary">保存して次の質問を追加</button>
+             <button type="submit" class="btn btn-primary">保存して完了</button>
+        </div>
+    </form>
+
+    <script>
+        const questionTypeSelect = document.getElementById('id_question_type');
+        const choiceContainer = document.getElementById('choice-fields-container');
+        const addChoiceBtn = document.getElementById('add-choice-btn');
+        const firstChoiceInput = document.getElementById('id_choice_text_1');
+        const calculateSumGroup = document.getElementById('calculate-sum-group');
+
+        function updateFormDisplay() { /* (変更なし) */ }
+        function addNewChoice() {
+            const choiceCount = choiceContainer.querySelectorAll('.choice-item').length + 1;
+            const newChoiceDiv = document.createElement('div');
+            newChoiceDiv.className = 'form-group choice-item';
+            newChoiceDiv.style.display = 'flex';
+            newChoiceDiv.style.alignItems = 'center';
+            const newChoiceInput = document.createElement('input');
+            newChoiceInput.type = 'text';
+            newChoiceInput.name = 'choice_text';
+            newChoiceInput.placeholder = '選択肢 ' + choiceCount;
+            newChoiceInput.className = 'choice-text-input';
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.textContent = '削除';
+            // ★ class="btn btn-danger" に変更
+            deleteBtn.className = 'btn btn-danger';
+            deleteBtn.style.marginLeft = '10px';
+            deleteBtn.onclick = function() { newChoiceDiv.remove(); };
+            newChoiceDiv.appendChild(newChoiceInput);
+            newChoiceDiv.appendChild(deleteBtn);
+            choiceContainer.appendChild(newChoiceDiv);
+            newChoiceInput.focus();
+        }
+
+        addChoiceBtn.addEventListener('click', addNewChoice);
+        choiceContainer.addEventListener('keydown', function(event) { /* (変更なし) */ });
+        questionTypeSelect.addEventListener('change', updateFormDisplay);
+        document.addEventListener('DOMContentLoaded', updateFormDisplay);
+    </script>
+{% endblock %}

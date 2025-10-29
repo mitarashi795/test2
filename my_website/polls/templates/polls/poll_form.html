@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>{% if object %}投票の編集{% else %}新しい投票の作成{% endif %}</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        {{ form.as_p }}
+        
+        <button type="submit" class="btn-primary">
+            {% if object %}保存する{% else %}次のステップへ (質問作成){% endif %}
+        </button>
+    </form>
+{% endblock %}

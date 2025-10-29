@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5em;">
+        <h2>投票一覧</h2>
+        <div>
+            {% if request.session.user_role == '実行委員長' or request.session.user_role == '委員長' %}
+                <a href="{% url 'poll_manage_list' %}"><button class="btn btn-secondary">投票結果の確認と設定の変更はこちら</button></a>
+                <a href="{% url 'poll_create' %}"><button class="btn btn-primary">新しい投票を作成</button></a>
+            {% endif %}
+            </div>
+    </div>
+
+    <div class="account-list">
+        {% for poll in poll_list %}
+            <div class="account-card">
+                <h3>{{ poll.title }}</h3>
+                <p>{{ poll.description|truncatewords:20 }}</p>
+                <p style="font-size: 0.8em; color: #666;">作成者: {{ poll.created_by.name }} | 日時: {{ poll.created_at|date:"Y/m/d H:i" }}</p>
+                <div class="actions">
+                    <a href="{% url 'poll_detail' poll.pk %}"><button class="btn btn-primary">投票する</button></a>
+                </div>
+            </div>
+        {% empty %}
+            <p>現在、実施されている投票はありません。</p>
+        {% endfor %}
+    </div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5em;">
+        <h2>投票の管理: {{ poll.title }}</h2>
+        <a href="{% url 'poll_manage_list' %}"><button class="btn-secondary">管理一覧に戻る</button></a>
+    </div>
+
+    <div class="account-card" style="margin-bottom: 1.5em;">
+        <h3>基本設定</h3>
+        <p><strong>タイトル:</strong> {{ poll.title }}</p>
+        <p><strong>説明:</strong> {{ poll.description }}</p>
+        <div class="actions">
+            <a href="{% url 'poll_edit' poll.pk %}"><button class="btn-primary">基本設定を編集</button></a>
+        </div>
+    </div>
+
+    <div class="account-card">
+        <h3>質問と選択肢の管理</h3>
+        {% for question in poll.questions.all %}
+            <div style="border-bottom: 1px solid #eee; padding: 1em 0;">
+                <p><strong>Q: {{ question.text }}</strong> (タイプ: {{ question.get_question_type_display }})</p>
+                <div class="actions" style="display: flex; gap: 0.5em; justify-content: flex-end;">
+                    {% if question.question_type == 'CHOICE' %}
+                        <a href="{% url 'manage_choices' question.pk %}"><button class="btn-secondary">選択肢を編集</button></a>
+                    {% endif %}
+                    <form method="post" action="{% url 'question_delete' question.pk %}" onsubmit="return confirm('この質問を本当に削除しますか？');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-danger">質問を削除</button>
+                    </form>
+                </div>
+            </div>
+        {% empty %}
+            <p>まだ質問はありません。</p>
+        {% endfor %}
+        <div class="actions" style="margin-top: 1.5em;">
+             <a href="{% url 'add_question' poll.pk %}"><button class="btn-primary">新しい質問を追加</button></a>
+        </div>
+    </div>
+{% endblock %}

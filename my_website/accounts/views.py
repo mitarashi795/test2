@@ -1,0 +1,169 @@
+# accounts/views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views import View
+import json
+
+from .forms import CustomLoginForm
+from .models import LoginRequest
+
+# --- ログイン処理 ---
+def custom_login(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        form = CustomLoginForm(data)
+        if form.is_valid():
+            role = form.cleaned_data['role']
+            # 「クラス展示関係者」も自動承認の対象に追加
+            is_approved = role in ['教員', '部活動関係者', 'クラス展示関係者']
+
+            login_request = LoginRequest.objects.create(
+                name=form.cleaned_data['name'],
+                email=form.cleaned_data['email'],
+                role=role,
+                committee=form.cleaned_data.get('committee'),
+                club=form.cleaned_data.get('club'),
+                class_exhibit=form.cleaned_data.get('class_exhibit'),
+                is_approved=is_approved
+            )
+
+            # セッションにアカウントIDのリストを保存・更新
+            my_account_ids = request.session.get('my_account_ids', [])
+            my_account_ids.append(login_request.id)
+            request.session['my_account_ids'] = my_account_ids
+
+            # 現在アクティブなアカウントとして設定
+            request.session['login_request_id'] = login_request.id
+            request.session['user_role'] = login_request.role
+
+            redirect_url = '/dashboard/' if is_approved else '/wait_for_approval/'
+            return JsonResponse({'success': True, 'redirect_url': redirect_url})
+        else:
+            # フォームが無効な場合のエラー詳細を取得 (デバッグ用)
+            errors = form.errors.as_json()
+            print(f"Form errors: {errors}") # ターミナルにエラー表示
+            return JsonResponse({'success': False, 'error': '入力内容に誤りがあります。'})
+    return JsonResponse({'success': False, 'error': '不正なリクエストです。'})
+
+# --- ログアウト処理 ---
+def custom_logout(request):
+    # セッションからアカウント関連の情報をすべて削除
+    for key in list(request.session.keys()):
+        if not key.startswith('_'): # Django内部キー以外
+             del request.session[key]
+    return redirect('landing') # ログアウト後はトップページ
+
+# --- アカウント一覧ページ ---
+class AccountListView(View):
+    def get(self, request, *args, **kwargs):
+        my_account_ids = request.session.get('my_account_ids', [])
+        if not my_account_ids:
+             # ログインしていなければログインページへリダイレクトするのがより親切
+             if not request.session.get('login_request_id'):
+                 return redirect('landing') # もしくは適切なログインページへ
+             my_account_ids = [request.session.get('login_request_id')]
+
+        my_accounts = LoginRequest.objects.filter(id__in=my_account_ids).order_by('-timestamp')
+        context = {
+            'my_accounts': my_accounts,
+            # active_account_idはテンプレート側でrequest.sessionを参照するため不要
+        }
+        return render(request, 'accounts/account_list.html', context)
+
+# --- アカウント切り替え処理 ---
+def switch_account(request, pk):
+    my_account_ids = request.session.get('my_account_ids', [])
+    login_request_id = request.session.get('login_request_id')
+
+    # ログインしていない場合はトップへ
+    if not login_request_id:
+        return redirect('landing')
+
+    # セキュリティチェック：自分のアカウントリストに含まれるIDにしか切り替えられない
+    if pk in my_account_ids:
+        account_to_switch = get_object_or_404(LoginRequest, pk=pk)
+        request.session['login_request_id'] = account_to_switch.id
+        request.session['user_role'] = account_to_switch.role
+
+        # 承認状態に応じてダッシュボードか承認待ちページへ
+        if account_to_switch.is_approved:
+            return redirect('dashboard')
+        else:
+            return redirect('wait_for_approval')
+
+    # 不正なアクセスやリストにないIDの場合はアカウント一覧に戻すのが親切
+    return redirect('account_list')
+
+# --- 承認待ちページ ---
+class WaitForApprovalView(View):
+    def get(self, request, *args, **kwargs):
+        login_request_id = request.session.get('login_request_id')
+        if not login_request_id: return redirect('landing') # 未ログインならトップへ
+        login_request = get_object_or_404(LoginRequest, id=login_request_id)
+        if login_request.is_approved: return redirect('dashboard') # 承認済みならダッシュボードへ
+        return render(request, 'accounts/wait_for_approval.html', {'login_request': login_request})
+
+# --- 承認リストページ ---
+class ApprovalListView(View):
+    def get(self, request, *args, **kwargs):
+        login_request_id = request.session.get('login_request_id')
+        if not login_request_id: return redirect('landing') # 未ログインならトップへ
+
+        current_user = get_object_or_404(LoginRequest, id=login_request_id)
+        # 承認権限チェック
+        if current_user.role not in ['教員', '実行委員長']:
+            return HttpResponseForbidden("アクセス権限がありません。")
+
+        pending_requests = []
+        if current_user.role == '教員':
+            pending_requests = LoginRequest.objects.filter(role='実行委員長', is_approved=False).order_by('timestamp')
+        elif current_user.role == '実行委員長':
+            pending_requests = LoginRequest.objects.filter(role='委員長', is_approved=False).order_by('timestamp')
+
+        context = {'current_user': current_user, 'pending_requests': pending_requests}
+        return render(request, 'accounts/approval_list.html', context)
+
+# --- 承認アクション ---
+def approve_request(request, pk):
+    approver_id = request.session.get('login_request_id')
+    if not approver_id: return redirect('landing') # 未ログインならトップへ
+
+    approver = get_object_or_404(LoginRequest, id=approver_id)
+    request_to_approve = get_object_or_404(LoginRequest, pk=pk)
+
+    # 権限チェック
+    can_approve = False
+    if approver.role == '教員' and request_to_approve.role == '実行委員長':
+        can_approve = True
+    elif approver.role == '実行委員長' and request_to_approve.role == '委員長':
+        can_approve = True
+
+    if not can_approve:
+        return HttpResponseForbidden("承認権限がありません。")
+
+    # 安全のためPOSTリクエストのみ受け付けるように修正
+    if request.method == 'POST':
+        request_to_approve.is_approved = True
+        request_to_approve.save()
+        return redirect('approval_list')
+    else:
+        # GETリクエストの場合はリストに戻す
+        return redirect('approval_list')
+
+# --- トップページ（ランディングページ） ---
+class LandingPageView(View):
+    def get(self, request, *args, **kwargs):
+        return render(request, 'landing.html')
+
+# --- ダッシュボード ---
+class DashboardView(View): # クラスベースビューに戻しました
+    def get(self, request, *args, **kwargs):
+        login_request_id = request.session.get('login_request_id')
+        if not login_request_id: return redirect('landing') # 未ログインならトップへ
+
+        login_request = get_object_or_404(LoginRequest, id=login_request_id)
+        # メール認証ではないため、承認チェックはここでも必要
+        if not login_request.is_approved and login_request.role in ['実行委員長', '委員長']:
+            return redirect('wait_for_approval')
+
+        return render(request, 'accounts/dashboard.html', {'login_request': login_request})

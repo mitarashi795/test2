@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .account-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5em;
+    }
+    .account-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    padding: 1.5em;
+    border: 1px solid #ddd; /* ★枠線を追加 */
+    border-left: 5px solid #ccc;
+    transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .account-card.active {
+        border-left-color: #135389;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        transform: translateY(-5px);
+    }
+    .account-card h3 {
+        margin: 0 0 0.5em 0;
+        color: #30343A;
+    }
+    .account-card p {
+        margin: 0.25em 0;
+        color: #666;
+        font-size: 0.9em;
+    }
+    .account-card .status {
+        font-weight: bold;
+        padding: 0.2em 0.5em;
+        border-radius: 4px;
+        display: inline-block;
+        margin-top: 1em;
+    }
+    .status.approved { color: #2e7d32; background-color: #e8f5e9; }
+    .status.pending { color: #f57c00; background-color: #fff3e0; }
+
+    .account-card .actions {
+        margin-top: 1.5em;
+        text-align: right;
+    }
+    .actions .active-text {
+        color: #135389;
+        font-weight: bold;
+    }
+    .actions button {
+        background-color: #135389;
+        color: white;
+        border: none;
+        padding: 0.6em 1.2em;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    .actions button:hover {
+        opacity: 0.85;
+    }
+</style>
+
+<h2>アカウント一覧</h2>
+<p>このブラウザでログインしたアカウントの履歴です。カードをクリックしてアカウントを切り替えることができます。</p>
+
+<div class="account-list">
+    {% for account in my_accounts %}
+    <div class="account-card {% if account.id == request.session.login_request_id %}active{% endif %}">
+        <h3>{{ account.name }}</h3>
+        <p><strong>役職:</strong> {{ account.display_role }}</p>
+        <p><strong>ログイン日時:</strong> {{ account.timestamp|date:"Y/m/d H:i" }}</p>
+
+        {% if account.is_approved %}
+            <span class="status approved">承認済み</span>
+        {% else %}
+            <span class="status pending">承認待ち</span>
+        {% endif %}
+
+        <div class="actions">
+            {% if account.id == request.session.login_request_id %}
+                <span class="active-text">✔ 現在のアカウント</span>
+            {% else %}
+                <a href="{% url 'switch_account' account.pk %}">
+                    <button>このアカウントに切り替え</button>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

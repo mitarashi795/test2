@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .account-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5em;
+    }
+    .account-card {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        padding: 1.5em;
+        border-left: 5px solid #f57c00; /* Orange for pending */
+    }
+    .account-card h3 {
+        margin: 0 0 0.5em 0;
+        color: #30343A;
+    }
+    .account-card p {
+        margin: 0.25em 0;
+        color: #666;
+        font-size: 0.9em;
+    }
+    .account-card .actions {
+        margin-top: 1.5em;
+        text-align: right;
+    }
+    .actions button {
+        background-color: #2e7d32; /* Green for approve */
+        color: white;
+        border: none;
+        padding: 0.6em 1.2em;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    .actions button:hover {
+        opacity: 0.85;
+    }
+</style>
+
+<h2>承認リクエスト一覧</h2>
+<p>承認者: {{ current_user.name }} さん ({{ current_user.role }})</p>
+
+{% if pending_requests %}
+    <div class="account-list">
+        {% for req in pending_requests %}
+        <div class="account-card">
+            <h3>{{ req.name }}</h3>
+            <p><strong>役職:</strong> {{ req.role }}</p>
+            <p><strong>申請日時:</strong> {{ req.timestamp|date:"Y/m/d H:i" }}</p>
+            <div class="actions">
+                <a href="{% url 'approve_request' req.pk %}">
+                    <button>このリクエストを承認する</button>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>現在、承認が必要なリクエストはありません。</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>承認待機中</h2>
+    <p>{{ login_request.name }} さん ({{ login_request.role }})</p>
+    <p>現在、ログイン承認待ちです。役職に応じて、担当者からの承認をお待ちください。</p>
+    <p>承認されると、このページは自動的にダッシュボードに切り替わります。</p>
+    <p><a href="{% url 'wait_for_approval' %}">最新の状態に更新</a></p>
+{% endblock %}

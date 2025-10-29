@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* (CSS部分は変更ありません) */
+    .calendar-container { width: 90vw; max-width: 1600px; height: 80vh; margin: 2vh auto; display: flex; flex-direction: column; overflow: hidden; }
+    .calendar-header { flex-shrink: 0; padding-bottom: 1em; }
+    .calendar-body { flex-grow: 1; overflow-y: auto; }
+    .calendar-table { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
+    .calendar-table th, .calendar-table td { border: 1px solid #ddd; padding: 4px 6px; vertical-align: top; text-align: left; overflow: hidden; }
+    .calendar-table th { background-color: #f2f2f2; padding: 0.5em; text-align: center; }
+    .calendar-day { font-size: 0.9em; font-weight: bold; margin-bottom: 4px; text-align: right; padding-right: 4px; }
+    .other-month .calendar-day { color: #aaa; }
+    .event { border-radius: 4px; padding: 0.3em 0.5em; margin-top: 2px; font-size: 0.8em; display: block; text-decoration: none; white-space: normal; word-break: break-all; line-height: 1.2; border-left: 3px solid transparent; overflow: hidden; max-height: 5em; }
+    .event-incomplete { background-color: #ffebee; color: #c62828; border-left-color: #c62828; }
+    .event-completed { background-color: #e0f7fa; color: #007bff; border-left-color: #007bff; }
+    .event-editable { cursor: pointer; }
+    .event-editable.event-incomplete:hover { background-color: #ffcdd2; }
+    .event-editable.event-completed:hover { background-color: #b2ebf2; }
+    .event-readonly { background-color: #f5f5f5; color: #555; cursor: default; border-left-color: #ccc; }
+    .event-readonly.event-completed { background-color: #f5f5f5; color: #555; border-left-color: #ccc; }
+    .event-readonly.event-incomplete { background-color: #ffebee; color: #c62828; border-left-color: #c62828; }
+</style>
+
+<div class="calendar-container">
+    <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>{{ month_name }}</h2>
+        <div>
+            <a href="{% url 'calendar' prev_year prev_month %}"><button class="btn btn-secondary">‹ 前の月</button></a>
+            {% if request.session.user_role == '実行委員長' or request.session.user_role == '委員長' or request.session.user_role == '教員' %}
+            <a href="{% url 'event_create' %}"><button class="btn btn-primary">＋ 新規イベント作成</button></a>
+            {% endif %}
+            <a href="{% url 'calendar' next_year next_month %}"><button class="btn btn-secondary">次の月 ›</button></a>
+        </div>
+    </div>
+
+    <div class="calendar-body">
+        <table class="calendar-table">
+            <thead>
+                <tr><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th><th>日</th></tr>
+            </thead>
+            <tbody>
+                {% for week in month_dates %}
+                <tr>
+                    {% for day in week %}
+                    <td class="{% if day.month != month %}other-month{% endif %}">
+                        <div class="calendar-day">{{ day.day }}</div>
+                        {% for event in events %}
+                            {% if event.end_time.date == day %}
+                                {% if event.created_by_id == request.session.login_request_id %}
+                                    <a href="{% url 'event_edit' event.pk %}" class="event event-editable {% if event.completed %}event-completed{% else %}event-incomplete{% endif %}" title="({{ event.created_by.display_role }}): {{ event.title }}">
+                                        ({{ event.created_by.display_role }}): {{ event.title }} {% if event.completed %}(完了){% endif %}
+                                    </a>
+                                {% else %}
+                                    <div class="event event-readonly {% if event.completed %}event-completed{% else %}event-incomplete{% endif %}" title="({{ event.created_by.display_role }}): {{ event.title }}">
+                                        ({{ event.created_by.display_role }}): {{ event.title }} {% if event.completed %}(完了){% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* このファイル専用のスタイルは変更なし */
+    .choices__inner { background-color: #fff !important; border: 1px solid #bbb !important; border-radius: 5px !important; padding: 0.5em 1em !important; font-size: 1em !important; min-height: 44px !important; color: #30343A !important; }
+    .choices[data-type*='select-one'] .choices__item--selectable { color: #30343A !important; }
+    .is-open .choices__list--dropdown { border-radius: 5px !important; border: 1px solid #bbb !important; width: 100% !important; }
+    .choices__item--choice.is-highlighted { background-color: #f2f2f2 !important; color: #30343A !important; }
+</style>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em;">
+        <div>
+            <h2>{{ poll.title }}</h2>
+            <p>{{ poll.description }}</p>
+        </div>
+        <a href="{% url 'poll_list' %}"><button type="button" class="btn btn-secondary">投票一覧に戻る</button></a>
+    </div>
+    <hr>
+    
+    {% if error %}
+        <p style="color: red; font-weight: bold;">{{ error }}</p>
+    {% else %}
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for question in poll.questions.all %}
+                <div class="account-card" style="margin-bottom: 1.5em;">
+                    <div class="form-group">
+                        <label style="font-weight: bold; font-size: 1.1em; display: block; margin-bottom: 1em;">{{ forloop.counter }}. {{ question.text }}</label>
+                        
+                        {% if question.question_type == 'CHOICE' %}
+                            <select name="question_{{ question.id }}" class="form-control searchable-select">
+                                <option value="" disabled selected>選択してください</option>
+                                {% for choice in question.choices.all %}
+                                    <option value="{{ choice.id }}">{{ choice.text }}</option>
+                                {% endfor %}
+                            </select>
+                        {% elif question.question_type == 'TEXT' %}
+                            <textarea name="question_{{ question.id }}" rows="4" class="form-control" style="width: 95%; margin-top: 0.5em;"></textarea>
+                        {% elif question.question_type == 'PHOTO' %}
+                            <input type="file" name="question_{{ question.id }}" accept="image/*" style="margin-top: 0.5em;">
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary">この内容で投票する</button>
+        </form>
+    {% endif %}
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const elements = document.querySelectorAll('.searchable-select');
+    elements.forEach(function(element) {
+        new Choices(element, {
+            searchEnabled: true,
+            itemSelectText: '決定',
+        });
+    });
+});
+</script>
+{% endblock %}

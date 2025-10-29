@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5em;">
+        <h2>投票結果: {{ poll.title }}</h2>
+        <a href="{% url 'poll_manage_list' %}"><button class="btn-secondary">管理一覧に戻る</button></a>
+    </div>
+
+    {% for question in poll.questions.all %}
+        <div class="account-card" style="margin-bottom: 1.5em;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Q: {{ question.text }}</h3>
+                <div class="form-group" style="width: 300px;">
+                    <label for="filter-{{ question.id }}">回答者の役職で絞り込み</label>
+                    <select class="form-control role-filter" data-table-id="answer-table-{{ question.id }}">
+                        <option value="all">すべて表示</option>
+                        {% for role in voter_roles %}
+                            <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            {% if question.calculate_sum and question.question_type == 'TEXT' %}
+                <div style="font-size: 1.2em; font-weight: bold; margin: 1em 0; text-align: right;">
+                    表示中の合計: <span id="sum-for-q-{{ question.id }}">0</span>
+                </div>
+            {% endif %}
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 1em;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="width: 40%; border: 1px solid #ddd; padding: 8px; text-align: left;">回答者</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">回答内容</th>
+                    </tr>
+                </thead>
+                <tbody id="answer-table-{{ question.id }}">
+                    {% for answer in question.answer_set.all %}
+                    <tr data-role="{{ answer.user.display_role }}">
+                        <td style="border: 1px solid #ddd; padding: 8px;">{{ answer.user.name }} ({{ answer.user.display_role }})</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;" class="answer-cell">
+                            {% if answer.choice %}
+                                {{ answer.choice.text }}
+                            {% elif answer.text_answer %}
+                                {{ answer.text_answer }}
+                            {% elif answer.image_answer %}
+                                <a href="{{ answer.image_answer.url }}" target="_blank">
+                                    <img src="{{ answer.image_answer.url }}" alt="投稿画像" style="max-width: 200px; max-height: 200px;">
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2" style="border: 1px solid #ddd; padding: 8px; text-align: center;">まだ回答はありません。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- 合計を計算する関数 ---
+    function updateSums() {
+        // 合計表示欄をすべて探す
+        const sumDisplays = document.querySelectorAll('[id^="sum-for-q-"]');
+        sumDisplays.forEach(function(span) {
+            const questionId = span.id.split('-')[3];
+            const answerTable = document.getElementById(`answer-table-${questionId}`);
+            let total = 0;
+            
+            // 表示されている行だけを対象にループ
+            const visibleRows = answerTable.querySelectorAll('tr[style*="display: none;"]');
+            const allRows = answerTable.querySelectorAll('tr');
+
+            allRows.forEach(function(row){
+                if(row.style.display !== 'none'){
+                    const answerCell = row.querySelector('.answer-cell');
+                    if (answerCell) {
+                        const value = parseFloat(answerCell.textContent.trim());
+                        if (!isNaN(value)) {
+                            total += value;
+                        }
+                    }
+                }
+            });
+
+            span.textContent = total;
+        });
+    }
+
+    // --- 絞り込みフィルターの処理 ---
+    const filters = document.querySelectorAll('.role-filter');
+    filters.forEach(function(filterSelect) {
+        filterSelect.addEventListener('change', function() {
+            const selectedRole = this.value;
+            const tableId = this.dataset.tableId;
+            const answerTable = document.getElementById(tableId);
+            const rows = answerTable.querySelectorAll('tr');
+
+            rows.forEach(function(row) {
+                if (selectedRole === 'all' || row.dataset.role === selectedRole) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            // ★絞り込みが終わった後に、合計を再計算する
+            updateSums();
+        });
+    });
+
+    // ★ページ読み込み時にも、最初の合計を計算する
+    updateSums();
+});
+</script>
+{% endblock %}
