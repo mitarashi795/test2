@@ -52,10 +52,11 @@
             <p><strong>役職:</strong> {{ req.role }}</p>
             <p><strong>申請日時:</strong> {{ req.timestamp|date:"Y/m/d H:i" }}</p>
             <div class="actions">
-                <a href="{% url 'approve_request' req.pk %}">
-                    <button>このリクエストを承認する</button>
-                </a>
-            </div>
+                <form method="post" action="{% url 'approve_request' req.pk %}" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">このリクエストを承認する</button>
+                </form>
+                </div>
         </div>
         {% endfor %}
     </div>
