@@ -67,7 +67,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'accounts.context_processors.login_form_context', # ★この行を追加
+                # 'accounts.context_processors.login_form_context', # ★この行を削除
                 
             ],
         },
