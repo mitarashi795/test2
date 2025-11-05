@@ -7,12 +7,22 @@ from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 from django.urls import reverse_lazy
 from datetime import timedelta
-import random
+import secrets
+import string
 import json
 
 # ★ フォームのインポートを更新
 from .forms import EmailForm, VerifyCodeForm, ProfileUpdateForm
 from .models import LoginRequest
+
+def get_random_password_string(length):
+    """
+    指定された長さのランダムな英数字文字列を生成する
+    (string.ascii_letters + string.digits)
+    """
+    pass_chars = string.ascii_letters + string.digits
+    password = ''.join(secrets.choice(pass_chars) for x in range(length))
+    return password
 
 # --- ログイン保護デコレータ ---
 def login_required_custom(view_func):
@@ -38,12 +48,21 @@ class RequestLoginCodeView(View):
             email = form.cleaned_data['email']
             
             # メールアドレスでユーザーを検索、なければ新規作成 (仮登録)
+            # ★ 承認機能を削除したため、is_approved はデフォルトで True に設定
             login_request, created = LoginRequest.objects.get_or_create(
                 email=email,
-                defaults={'name': email.split('@')[0], 'role': '部活動関係者'} # 仮の役職 (承認不要なもの)
+                defaults={
+                    'name': email.split('@')[0], 
+                    'role': '部活動関係者', # 仮の役職
+                    'is_approved': True # ★ 常に承認済みに
+                }
             )
+            
+            # ★ 既存ユーザーが未承認だった場合も、このタイミングで承認済みに更新
+            if not login_request.is_approved:
+                login_request.is_approved = True
 
-            code = str(random.randint(100000, 999999))
+            code = get_random_password_string(6)
             expiry_time = timezone.now() + timedelta(minutes=10) # 10分間有効
 
             login_request.otp_code_hash = make_password(code)
@@ -97,6 +116,7 @@ class VerifyLoginCodeView(View):
 
                     login_request.otp_code_hash = None
                     login_request.otp_expiry = None
+                    login_request.is_approved = True # ★ 念のためここでも承認済みに
                     login_request.save()
 
                     # セッションにログイン情報を保存し、有効期限を1週間に設定
@@ -111,9 +131,7 @@ class VerifyLoginCodeView(View):
                     if login_request.name == email.split('@')[0]:
                          return redirect('profile_update')
 
-                    # 承認が必要な役職かチェック
-                    elif login_request.role in ['実行委員長', '委員長'] and not login_request.is_approved:
-                         return redirect('wait_for_approval')
+                    # ★ 承認待ちのチェックを削除し、ダッシュボードへリダイレクト
                     else:
                          return redirect('dashboard')
                 else:
@@ -136,10 +154,10 @@ def profile_update_view(request):
             updated_profile = form.save(commit=False)
             # セッションの役職も更新
             request.session['user_role'] = updated_profile.role 
+            updated_profile.is_approved = True # ★ 常に承認済みに
             updated_profile.save()
             
-            if updated_profile.role in ['実行委員長', '委員長'] and not updated_profile.is_approved:
-                return redirect('wait_for_approval')
+            # ★ 承認待ちのチェックを削除し、ダッシュボードへリダイレクト
             return redirect('dashboard')
     else:
         form = ProfileUpdateForm(instance=user_profile)
@@ -166,8 +184,7 @@ class LandingPageView(View):
 def dashboard_view(request):
     login_request_id = request.session.get('login_request_id')
     login_request = get_object_or_404(LoginRequest, id=login_request_id)
-    if not login_request.is_approved and login_request.role in ['実行委員長', '委員長']:
-        return redirect('wait_for_approval')
+    # ★ 承認待ちのチェックを削除
     return render(request, 'accounts/dashboard.html', {'login_request': login_request})
 
 # --- アカウント一覧 (ログイン保護) ---
@@ -178,48 +195,4 @@ def account_list_view(request):
     context = {'my_accounts': my_accounts}
     return render(request, 'accounts/account_list.html', context)
 
-# --- 承認待ちページ (ログイン保護) ---
-@login_required_custom
-def wait_for_approval_view(request):
-    login_request_id = request.session.get('login_request_id')
-    login_request = get_object_or_404(LoginRequest, id=login_request_id)
-    if login_request.is_approved: return redirect('dashboard')
-    return render(request, 'accounts/wait_for_approval.html', {'login_request': login_request})
-
-# --- 承認リストページ (ログイン保護 + 権限チェック) ---
-@login_required_custom
-def approval_list_view(request):
-    login_request_id = request.session.get('login_request_id')
-    current_user = get_object_or_404(LoginRequest, id=login_request_id)
-    if current_user.role not in ['教員', '実行委員長']:
-        return HttpResponseForbidden("アクセス権限がありません。")
-
-    pending_requests = []
-    if current_user.role == '教員':
-        pending_requests = LoginRequest.objects.filter(role='実行委員長', is_approved=False).order_by('timestamp')
-    elif current_user.role == '実行委員長':
-        pending_requests = LoginRequest.objects.filter(role='委員長', is_approved=False).order_by('timestamp')
-    context = {'current_user': current_user, 'pending_requests': pending_requests}
-    return render(request, 'accounts/approval_list.html', context)
-
-# --- 承認アクション (ログイン保護 + 権限チェック) ---
-@login_required_custom
-def approve_request(request, pk):
-    approver_id = request.session.get('login_request_id')
-    approver = get_object_or_404(LoginRequest, id=approver_id)
-    request_to_approve = get_object_or_404(LoginRequest, pk=pk)
-
-    can_approve = False
-    if approver.role == '教員' and request_to_approve.role == '実行委員長':
-        can_approve = True
-    elif approver.role == '実行委員長' and request_to_approve.role == '委員長':
-        can_approve = True
-
-    if not can_approve:
-        return HttpResponseForbidden("承認権限がありません。")
-
-    if request.method == 'POST':
-        request_to_approve.is_approved = True
-        request_to_approve.save()
-    
-    return redirect('approval_list')
+# --- 承認関連のビュー (wait_for_approval_view, approval_list_view, approve_request) は削除 ---

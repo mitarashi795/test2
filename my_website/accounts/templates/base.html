@@ -58,9 +58,12 @@
                 {% if request.session.user_role == '実行委員長' or request.session.user_role == '委員長' or request.session.user_role == '教員' %}
                 <li><a href="{% url 'calendar_root' %}">カレンダー</a></li>
                 {% endif %}
+                {% comment %} ★ 承認メニューをコメントアウト {% endcomment %}
+                {% comment %}
                 {% if request.session.user_role == '教員' or request.session.user_role == '実行委員長' %}
                 <li><a href="{% url 'approval_list' %}">許可</a></li>
                 {% endif %}
+                {% endcomment %}
                 <li class="right"><a href="{% url 'logout' %}">ログアウト</a></li>
             {% else %}
                 <li><a href="{% url 'landing' %}">ホーム</a></li>

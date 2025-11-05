@@ -6,7 +6,82 @@
 
     <form method="post" class="account-card" style="max-width: 500px;">
         {% csrf_token %}
-        {{ form.as_p }}
+        
+        {% comment %} ★ フォームを手動レンダリングに変更 {% endcomment %}
+        
+        <div class="form-group">
+            {{ form.name.errors }}
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}:</label>
+            {{ form.name }}
+        </div>
+
+        <div class="form-group">
+            {{ form.role.errors }}
+            <label for="{{ form.role.id_for_label }}">{{ form.role.label }}:</label>
+            {# ★ JavaScriptで参照するため、roleフィールドにidを付与 #}
+            {{ form.role }}
+        </div>
+
+        {# ★ 役職に応じて表示/非表示を切り替えるグループ #}
+        <div id="committee-group" class="form-group" style="display: none;">
+            {{ form.committee.errors }}
+            <label for="{{ form.committee.id_for_label }}">{{ form.committee.label }}:</label>
+            {{ form.committee }}
+        </div>
+
+        <div id="club-group" class="form-group" style="display: none;">
+            {{ form.club.errors }}
+            <label for="{{ form.club.id_for_label }}">{{ form.club.label }}:</label>
+            {{ form.club }}
+        </div>
+
+        <div id="class_exhibit-group" class="form-group" style="display: none;">
+            {{ form.class_exhibit.errors }}
+            <label for="{{ form.class_exhibit.id_for_label }}">{{ form.class_exhibit.label }}:</label>
+            {{ form.class_exhibit }}
+        </div>
+        
         <button type="submit" class="btn btn-primary">更新して続ける</button>
     </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ★ フォームのIDは Django が自動生成する `id_` プレフィックスを想定
+    const roleSelect = document.getElementById('id_role'); 
+    const committeeGroup = document.getElementById('committee-group');
+    const clubGroup = document.getElementById('club-group');
+    const classExhibitGroup = document.getElementById('class_exhibit-group');
+
+    function toggleFields() {
+        if (!roleSelect) return; // roleSelect が見つからない場合は何もしない
+        
+        const selectedRole = roleSelect.value;
+        
+        // デフォルトはすべて非表示
+        if (committeeGroup) committeeGroup.style.display = 'none';
+        if (clubGroup) clubGroup.style.display = 'none';
+        if (classExhibitGroup) classExhibitGroup.style.display = 'none';
+
+        // 選択された役職に応じて表示
+        if (selectedRole === '委員長') {
+            if (committeeGroup) committeeGroup.style.display = 'block';
+        } else if (selectedRole === '部活動関係者') {
+            if (clubGroup) clubGroup.style.display = 'block';
+        } else if (selectedRole === 'クラス展示関係者') {
+            if (classExhibitGroup) classExhibitGroup.style.display = 'block';
+        }
+        // 教員と実行委員長の場合は何も表示されない (デフォルトのまま)
+    }
+
+    if (roleSelect) {
+        // 役職が変更されたら実行
+        roleSelect.addEventListener('change', toggleFields);
+    }
+    
+    // ページ読み込み時にも実行（初期表示のため）
+    toggleFields();
+});
+</script>
 {% endblock %}

@@ -72,11 +72,14 @@
         <p><strong>役職:</strong> {{ account.display_role }}</p>
         <p><strong>ログイン日時:</strong> {{ account.timestamp|date:"Y/m/d H:i" }}</p>
 
+        {% comment %} ★ 承認ステータスを削除 {% endcomment %}
+        {% comment %}
         {% if account.is_approved %}
             <span class="status approved">承認済み</span>
         {% else %}
             <span class="status pending">承認待ち</span>
         {% endif %}
+        {% endcomment %}
 
         <div class="actions">
             {% if account.id == request.session.login_request_id %}

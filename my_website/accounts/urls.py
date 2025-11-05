@@ -13,9 +13,4 @@ urlpatterns = [
     path('', views.LandingPageView.as_view(), name='landing'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
     path('accounts/', views.account_list_view, name='account_list'),
-    
-    # 承認関連
-    path('wait_for_approval/', views.wait_for_approval_view, name='wait_for_approval'),
-    path('approval/', views.approval_list_view, name='approval_list'),
-    path('approve/<int:pk>/', views.approve_request, name='approve_request'),
 ]
